@@ -1,5 +1,5 @@
 # ==================================================================
-# import 
+# import
 # ==================================================================
 import load_datasets
 
@@ -28,5 +28,5 @@ for data_split in ['train', 'test', 'validation']:
             anatomy=anatomy,
             dataset=dataset,
             train_test_validation=data_split,
-            first_run = False  # <-- SET TO TRUE FOR THE FIRST RUN (enables preliminary preprocessing e.g. bias field correction)
-)
+            save_original=True  # Whether original dataset should be saved as well
+        )

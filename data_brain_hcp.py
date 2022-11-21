@@ -408,3 +408,55 @@ def load_and_maybe_process_data(input_folder,
         logging.info('Already preprocessed this configuration. Loading now!')
 
     return h5py.File(data_file_path, 'r')
+
+# ===============================================================
+# function to read images and labels without any pre-processing
+#  returns aa handle to a hdf5 file containing them.
+#  The images and labels are returned as [num_subjects, nz, nx, ny],
+#   where nz is the number of coronal slices per subject ('depth')
+#         nx, ny is the size of the coronal slices ('size')  
+#         the resolution in the coronal slices is 'target_resolution'
+#         the resolution perpendicular to coronal slices is unchanged.
+# The read images are the ones from after the 'PreFreeSurfer' preprocessing pipeline.
+    # So, they have undergone several pre-processing steps (including skull stripping and bias field correction)
+    # For details, see the comments in the get_image_and_label_paths function.
+# Each image volume is normalized to [0-1].
+# The segmentation labels are grouped into 15 classes.    
+# ===============================================================
+def load_multiple_without_size_preprocessing(input_folder,
+                                             preprocessing_folder,
+                                             idx_start,
+                                             idx_end,
+                                             protocol,
+                                             depth=-1):
+    
+    images_original = []
+    labels_original = []
+    
+    for i in range(idx_start, idx_end):
+
+        img_orig, lab_orig = load_without_size_preprocessing(
+            input_folder=input_folder,
+            idx = i,
+            protocol = protocol,
+            preprocessing_folder = preprocessing_folder,
+            depth = depth,
+        )
+
+        images_original.append(img_orig)
+        labels_original.append(lab_orig)
+
+    # =====================================
+    # Convert from N x nx x ny x nz to N x nz x nx x ny
+    # =====================================
+    images_original = np.moveaxis(np.stack(images_original), -1, 1)
+    labels_original = np.moveaxis(np.stack(labels_original), -1, 1)
+
+    data_file_name = 'data_%s_original_depth_%d_from_%d_to_%d.hdf5' % (protocol, depth, idx_start, idx_end)
+    data_file_path = os.path.join(preprocessing_folder, data_file_name)
+
+    with h5py.File(data_file_path, 'w') as f:
+        f.create_dataset('images', data=images_original, dtype=np.float32)
+        f.create_dataset('labels', data=labels_original, dtype=np.uint8)
+
+    return h5py.File(data_file_path, 'r')

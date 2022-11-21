@@ -15,7 +15,7 @@ import data_prostate_pirad_erc
 def load_dataset(anatomy,
                  dataset,
                  train_test_validation,
-                 first_run = False): # <-- SET TO TRUE FOR THE FIRST RUN OF A PARTICULAR DATASET
+                 save_original=False):
 
     # =====================================
     # brain datasets
@@ -79,6 +79,17 @@ def load_dataset(anatomy,
                                                                     depth = image_depth,
                                                                     target_resolution = target_resolution)
             
+            if save_original:
+
+                data_brain_hcp.load_multiple_without_size_preprocessing(
+                    input_folder=datapaths.orig_dir_hcp,
+                    preprocessing_folder=datapaths.preproc_dir_hcp,
+                    idx_start=idx_start,
+                    idx_end=idx_end,
+                    protocol=protocol,
+                    depth=image_depth,
+                )
+
         # =====================================
         # ABIDE
         # =====================================
@@ -138,6 +149,18 @@ def load_dataset(anatomy,
                                                                       target_resolution = target_resolution,
                                                                       force_overwrite = False)
         
+            if save_original:
+
+                data_brain_abide.load_multiple_without_size_preprocessing(
+                    input_folder=datapaths.orig_dir_abide,
+                    preprocessing_folder=datapaths.preproc_dir_abide,
+                    site_name=site_name,
+                    idx_start=idx_start,
+                    idx_end=idx_end,
+                    protocol='T1',
+                    depth=image_depth,
+                )
+
         # =====================================  
         # Extract images and labels from the hdf5 handle and return these.
         # If desired, the original resolutions of the images and original image sizes, as well as patient ids are also stored in the hdf5 file.
