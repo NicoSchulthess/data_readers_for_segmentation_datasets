@@ -351,7 +351,7 @@ def _release_tmp_memory(img_list,
 def load_without_size_preprocessing(input_folder,
                                     site_name,
                                     idx,
-                                    depth):
+                                    depth=-1):
     
     # ========================    
     # read the filenames
@@ -395,8 +395,9 @@ def load_without_size_preprocessing(input_folder,
     # ==================
     # crop volume along z axis (as there are several zeros towards the ends)
     # ==================
-    image = utils.crop_or_pad_volume_to_size_along_z(image, depth)
-    label = utils.crop_or_pad_volume_to_size_along_z(label, depth)     
+    if depth != -1:
+        image = utils.crop_or_pad_volume_to_size_along_z(image, depth)
+        label = utils.crop_or_pad_volume_to_size_along_z(label, depth)     
     
     # ==================
     # normalize the image    
