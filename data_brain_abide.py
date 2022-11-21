@@ -200,10 +200,10 @@ def prepare_data(input_folder,
         # ==================
         # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
         # ==================
-        if site_name is 'caltech':
+        if site_name == 'caltech':
             image = image[:, 80:, :]
             label = label[:, 80:, :]
-        elif site_name is 'stanford':
+        elif site_name == 'stanford':
             image, label = center_image_and_label(image, label)
                 
         # ==================
@@ -386,10 +386,10 @@ def load_without_size_preprocessing(input_folder,
     # ==================
     # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
     # ==================
-    if site_name is 'caltech':
+    if site_name == 'caltech':
         image = image[:, 80:, :]
         label = label[:, 80:, :]
-    elif site_name is 'stanford':
+    elif site_name == 'stanford':
         image, label = center_image_and_label(image, label)
     
     # ==================
@@ -444,8 +444,8 @@ def load_and_maybe_process_data(input_folder,
     # ==============================================
     # This is not required now. we have already done bias correction and saved the corresponding images in the input_folder.
     # ==============================================
-    # if first_run is True:
-    #    if site_name is 'caltech':
+    # if first_run == True:
+    #    if site_name == 'caltech':
     #        list_of_patients_to_skip = ['A00033264', 'A00033493']
     #    else:
     #        list_of_patients_to_skip = ['A00033547']

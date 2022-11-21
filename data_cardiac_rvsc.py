@@ -89,7 +89,7 @@ def read_image(image_folder_path,
     px, py, pz, nx, ny, nz, list_of_dicom_filenames, pix_dtype = get_image_details(image_folder_path)
     nifti_img_path = image_folder_path[:image_folder_path.rfind('/') + 1]
     
-    if nifti_available is False:
+    if nifti_available == False:
 
         imgDims = (nx, ny, nz)
         img_ED = np.zeros(imgDims, dtype = pix_dtype)
@@ -104,10 +104,10 @@ def read_image(image_folder_path,
             
             slice_id = int(list_of_dicom_filenames[zz][-8:-4])
             
-            if slice_id % 20 is 0: # ED
+            if slice_id % 20 == 0: # ED
                 img_ED[:, :, slice_id // 20] = ds.pixel_array        
             
-            elif (slice_id - ed_es_diff) % 20 is 0: # ES
+            elif (slice_id - ed_es_diff) % 20 == 0: # ES
                 img_ES[:, :, (slice_id - ed_es_diff) // 20] = ds.pixel_array
             
         # ================================
@@ -143,7 +143,7 @@ def read_label(label_folder_path,
     
     nifti_lbl_path = label_folder_path[:label_folder_path.rfind('/') + 1]
     
-    if nifti_available is False:
+    if nifti_available == False:
     
         label_ED = np.zeros(shape, dtype = np.uint8)
         label_ES = np.zeros(shape, dtype = np.uint8)
@@ -170,10 +170,10 @@ def read_label(label_folder_path,
                 xx, yy = polygon(x, y)
                 
                 # set the pixels inside the mask as 1
-                if slice_id % 20 is 0: # ED
+                if slice_id % 20 == 0: # ED
                     label_ED[xx, yy, slice_id // 20] = 1
                 
-                elif (slice_id - ed_es_diff) % 20 is 0: # ES
+                elif (slice_id - ed_es_diff) % 20 == 0: # ES
                     label_ES[xx, yy, (slice_id - ed_es_diff) // 20] = 1
                     
         # ================================  
@@ -236,7 +236,7 @@ def load_without_size_preprocessing(input_folder,
     # decide if ES or ED needs to be returned
     # ============
     print((idx%2))
-    if int(idx%2) is 0:
+    if int(idx%2) == 0:
         image = img_ED
         label = lab_ED
     else:
