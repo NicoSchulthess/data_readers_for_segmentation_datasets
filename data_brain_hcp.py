@@ -432,6 +432,9 @@ def load_multiple_without_size_preprocessing(input_folder,
     
     images_original = []
     labels_original = []
+    nx = []
+    ny = []
+    nz = []
     
     for i in range(idx_start, idx_end):
 
@@ -446,6 +449,39 @@ def load_multiple_without_size_preprocessing(input_folder,
         images_original.append(img_orig)
         labels_original.append(lab_orig)
 
+        assert img_orig.shape == lab_orig.shape
+
+        nx.append(img_orig.shape[0])
+        ny.append(img_orig.shape[1])
+        nz.append(img_orig.shape[2])
+
+    nx = np.array(nx)
+    ny = np.array(ny)
+    nz = np.array(nz)
+
+    # =====================================
+    # Padding all images to the same shape
+    # =====================================
+    max_nx = np.max(nx)
+    max_ny = np.max(ny)
+    max_nz = np.max(nz)
+
+    for i in range(len(images_original)):
+
+        pad_x = max_nx - nx[i]
+        pad_y = max_ny - ny[i]
+        pad_z = max_nz - nz[i]
+
+        images_original[i] = np.pad(
+            images_original[i],
+            [(0, pad_x), (0, pad_y), (0, pad_z)]
+        )
+
+        labels_original[i] = np.pad(
+            labels_original[i],
+            [(0, pad_x), (0, pad_y), (0, pad_z)]
+        )
+
     # =====================================
     # Convert from N x nx x ny x nz to N x nz x nx x ny
     # =====================================
@@ -456,7 +492,10 @@ def load_multiple_without_size_preprocessing(input_folder,
     data_file_path = os.path.join(preprocessing_folder, data_file_name)
 
     with h5py.File(data_file_path, 'w') as f:
-        f.create_dataset('images', data=images_original, dtype=np.float32)
-        f.create_dataset('labels', data=labels_original, dtype=np.uint8)
+        f.create_dataset('images', data=images_original)
+        f.create_dataset('labels', data=labels_original)
+        f.create_dataset('nx',     data=nx)
+        f.create_dataset('ny',     data=ny)
+        f.create_dataset('nz',     data=nz)
 
     return h5py.File(data_file_path, 'r')
