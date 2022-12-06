@@ -6,9 +6,9 @@ import load_datasets
 # ================================
 # set anatomy here
 # ================================
-# 'brain' / 'cardiac' / 'prostate'
+# 'brain' / 'cardiac' / 'prostate' / 'wmh'
 # ================================
-ANATOMIES = ['brain', 'brain', 'brain', 'brain']
+ANATOMIES = ['wmh', 'wmh', 'wmh', 'brain', 'brain', 'brain', 'brain']
 
 # ================================
 # set dataset here.
@@ -16,8 +16,9 @@ ANATOMIES = ['brain', 'brain', 'brain', 'brain']
 # for brain: 'HCP_T1' / 'HCP_T2' / 'ABIDE_caltech' / 'ABIDE_stanford'
 # for cardiac: 'ACDC' / 'RVSC'
 # for prostate: 'NCI' / 'PIRAD_ERC'
+# for WMH: 'NUHS' / 'UMC' / 'VU'
 # ================================
-DATASETS = ['HCP_T1', 'HCP_T2', 'ABIDE_caltech', 'ABIDE_stanford']
+DATASETS = ['NUHS', 'UMC', 'VU', 'HCP_T1', 'HCP_T2', 'ABIDE_caltech', 'ABIDE_stanford']
 
 # ================================
 # read images and segmentation labels

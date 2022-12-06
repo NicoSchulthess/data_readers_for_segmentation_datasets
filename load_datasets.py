@@ -8,6 +8,7 @@ import data_cardiac_acdc
 import data_cardiac_rvsc
 import data_prostate_nci
 import data_prostate_pirad_erc
+import data_wmh_miccai
 
 # ============================
 # main function that redirects the data loading to the requested anatomy and dataset
@@ -167,7 +168,49 @@ def load_dataset(anatomy,
         # =====================================  
         images = data_brain['images']
         labels = data_brain['labels']
-                        
+
+    elif anatomy == 'wmh':
+        image_size = (256, 256)
+        target_resolution = (1, 1)
+
+
+        if train_test_validation == 'train':
+                idx_start = 0
+                idx_end = 10
+            
+        elif train_test_validation == 'validation':
+                idx_start = 10
+                idx_end = 15
+            
+        elif train_test_validation == 'test':
+                idx_start = 15
+                idx_end = 20
+
+        image_depth = -1  # Keeping the original image depth.
+
+        data_wmh = data_wmh_miccai.load_and_maybe_process_data(
+            input_folder = datapaths.orig_dir_wmh_miccai,
+            preprocessing_folder=datapaths.preproc_dir_wmh_miccai,
+            dataset = dataset,
+            idx_start = idx_start,
+            idx_end = idx_end,             
+            size = image_size,
+            depth = image_depth,
+            target_resolution = target_resolution,
+        )
+
+        if save_original:
+            data_wmh_miccai.load_multiple_without_size_preprocessing(
+                input_folder=datapaths.orig_dir_wmh_miccai,
+                preprocessing_folder=datapaths.preproc_dir_wmh_miccai,
+                dataset=dataset,
+                idx_start=idx_start,
+                idx_end=idx_end,
+            )
+
+        images = data_wmh['images']
+        labels = data_wmh['labels']
+
     # =====================================
     # 
     # =====================================
