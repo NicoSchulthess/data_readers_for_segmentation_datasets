@@ -186,7 +186,14 @@ def load_dataset(anatomy,
                 idx_start = 15
                 idx_end = 20
 
-        image_depth = -1  # Keeping the original image depth.
+        if dataset == 'NUHS' or dataset == 'UMC':
+            image_depth = 48
+
+        elif dataset == 'VU':
+            image_depth = 83
+            
+        else:
+            image_depth = -1
 
         data_wmh = data_wmh_miccai.load_and_maybe_process_data(
             input_folder = datapaths.orig_dir_wmh_miccai,

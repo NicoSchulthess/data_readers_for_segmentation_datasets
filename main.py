@@ -23,8 +23,8 @@ DATASETS = ['NUHS', 'UMC', 'VU', 'HCP_T1', 'HCP_T2', 'ABIDE_caltech', 'ABIDE_sta
 # ================================
 # read images and segmentation labels
 # ================================
-for data_split in ['train', 'test', 'validation']:
-    for dataset, anatomy in zip(DATASETS, ANATOMIES):
+for dataset, anatomy in zip(DATASETS, ANATOMIES):
+    for data_split in ['train', 'test', 'validation']:
         images, labels = load_datasets.load_dataset(
             anatomy=anatomy,
             dataset=dataset,
