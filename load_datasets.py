@@ -16,7 +16,8 @@ import data_wmh_miccai
 def load_dataset(anatomy,
                  dataset,
                  train_test_validation,
-                 save_original=False):
+                 save_original=False,
+                 force_overwrite=False):
 
     # =====================================
     # brain datasets
@@ -118,7 +119,7 @@ def load_dataset(anatomy,
             # while keeping the resolution perpendicular to the coronal slices at its original value.
             # =====================================
             image_size = (256, 256)
-            target_resolution = (0.7, 0.7)
+            target_resolution = (0.7, 0.7, 0.7)  # x,y,z
             
             # =====================================
             # within the ABIDE dataset, there are multiple T1 datasets - we have preprocessed the data from 2 of these so far.
@@ -148,7 +149,7 @@ def load_dataset(anatomy,
                                                                       size = image_size,
                                                                       depth = image_depth,
                                                                       target_resolution = target_resolution,
-                                                                      force_overwrite = False)
+                                                                      force_overwrite=force_overwrite)
         
             if save_original:
 

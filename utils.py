@@ -89,7 +89,7 @@ def normalise_image(image, norm_type = 'div_by_max'):
 # ===============================================================
 # ===============================================================
 def crop_or_pad_slice_to_size(slice, nx, ny):
-    x, y = slice.shape
+    x, y = slice.shape[:2]
 
     x_s = (x - nx) // 2
     y_s = (y - ny) // 2
@@ -97,15 +97,15 @@ def crop_or_pad_slice_to_size(slice, nx, ny):
     y_c = (ny - y) // 2
 
     if x > nx and y > ny:
-        slice_cropped = slice[x_s:x_s + nx, y_s:y_s + ny]
+        slice_cropped = slice[x_s:x_s + nx, y_s:y_s + ny, ...]
     else:
-        slice_cropped = np.zeros((nx, ny))
+        slice_cropped = np.zeros((nx, ny, *slice.shape[2:]))
         if x <= nx and y > ny:
-            slice_cropped[x_c:x_c + x, :] = slice[:, y_s:y_s + ny]
+            slice_cropped[x_c:x_c + x, :, ...] = slice[:, y_s:y_s + ny, ...]
         elif x > nx and y <= ny:
-            slice_cropped[:, y_c:y_c + y] = slice[x_s:x_s + nx, :]
+            slice_cropped[:, y_c:y_c + y, ...] = slice[x_s:x_s + nx, :, ...]
         else:
-            slice_cropped[x_c:x_c + x, y_c:y_c + y] = slice[:, :]
+            slice_cropped[x_c:x_c + x, y_c:y_c + y, ...] = slice[:, :, ...]
 
     return slice_cropped
 
@@ -152,10 +152,10 @@ def crop_or_pad_volume_to_size_along_z(vol, nz):
     z_c = (nz - z) // 2
 
     if z > nz: # original volume has more slices that the required number of slices
-        vol_cropped = vol[:, :, z_s:z_s + nz]
+        vol_cropped = vol[:, :, z_s:z_s + nz, ...]
     else: # original volume has equal of fewer slices that the required number of slices
-        vol_cropped = np.zeros((vol.shape[0], vol.shape[1], nz))
-        vol_cropped[:, :, z_c:z_c + z] = vol
+        vol_cropped = np.zeros((vol.shape[0], vol.shape[1], nz, *vol.shape[3:]))
+        vol_cropped[:, :, z_c:z_c + z, ...] = vol
     
     return vol_cropped
 

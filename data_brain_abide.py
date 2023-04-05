@@ -5,6 +5,7 @@ import gc
 import h5py
 import glob
 import utils
+from scipy.ndimage import shift
 from skimage.transform import rescale
 from shutil import copyfile
 import subprocess
@@ -200,27 +201,32 @@ def prepare_data(input_folder,
         # ==================
         # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
         # ==================
+        # if site_name == 'caltech':
+        #     image = image[:, 80:, :]
+        #     label = label[:, 80:, :]
+        # elif site_name == 'stanford':
+        image, label = center_image_and_label(image, label)
+
         if site_name == 'caltech':
-            image = image[:, 80:, :]
-            label = label[:, 80:, :]
-        elif site_name == 'stanford':
-            image, label = center_image_and_label(image, label)
+            image = shift(image, [-1, -16, 21], order=0)
+            label = shift(label, [-1, -16, 21], order=0)
                 
-        # ==================
-        # crop volume along z axis (as there are several zeros towards the ends)
-        # ==================
-        image = utils.crop_or_pad_volume_to_size_along_z(image, depth)
-        label = utils.crop_or_pad_volume_to_size_along_z(label, depth)     
 
         # ==================
         # collect some header info.
         # ==================
-        px_list.append(float(image_hdr.get_zooms()[0]))
-        py_list.append(float(image_hdr.get_zooms()[2])) # since axes 1 and 2 have been swapped. this is important when dealing with pixel dimensions
-        pz_list.append(float(image_hdr.get_zooms()[1]))
-        nx_list.append(image.shape[0]) 
-        ny_list.append(image.shape[1]) # since axes 1 and 2 have been swapped. however, only the final axis locations are relevant when dealing with shapes
-        nz_list.append(image.shape[2])
+        
+        # Order of z and y is inversed since axes 1 and 2 have been swapped.
+        # this is important when dealing with pixel dimensions
+        px, pz, py = image_hdr.get_zooms()
+        nx, ny, nz = image.shape
+
+        px_list.append(px)
+        py_list.append(py)
+        pz_list.append(pz)
+        nx_list.append(nx)
+        ny_list.append(ny)
+        nz_list.append(nz)
         pat_names_list.append(patient_name)
         
         # ==================
@@ -231,63 +237,71 @@ def prepare_data(input_folder,
         # ======================================================  
         ### PROCESSING LOOP FOR SLICE-BY-SLICE 2D DATA ###################
         # ======================================================
-        scale_vector = [image_hdr.get_zooms()[0] / target_resolution[0],
-                        image_hdr.get_zooms()[2] / target_resolution[1]] # since axes 1 and 2 have been swapped. this is important when dealing with pixel dimensions
+        scale_vector = [
+            px / target_resolution[0],
+            py / target_resolution[1],
+            pz / target_resolution[2],
+        ]
 
-        for zz in range(image.shape[2]):
 
-            # ============
-            # rescale the images and labels so that their orientation matches that of the nci dataset
-            # ============            
-            image2d_rescaled = rescale(np.squeeze(image_normalized[:, :, zz]),
-                                                  scale_vector,
-                                                  order=1,
-                                                  preserve_range=True,
-                                                  multichannel=False,
-                                                  mode = 'constant')
- 
-            label2d_rescaled = rescale(np.squeeze(label[:, :, zz]),
-                                                  scale_vector,
-                                                  order=0,
-                                                  preserve_range=True,
-                                                  multichannel=False,
-                                                  mode='constant')
+        # ============
+        # rescale the images and labels so that their orientation matches that of the nci dataset
+        # ============            
+        image_rescaled = rescale(
+            image_normalized,
+            scale_vector,
+            order=1,
+            preserve_range=True,
+            multichannel=False,
+            mode = 'constant',
+        )
+
+        label_rescaled = rescale(
+            label,
+            scale_vector,
+            order=0,
+            preserve_range=True,
+            multichannel=False,
+            mode='constant',
+        )
+        
+        # ============            
+        # crop or pad to make of the same size
+        # ============            
+        image_rescaled = utils.crop_or_pad_slice_to_size(image_rescaled, size[0], size[1])
+        image_rescaled = utils.crop_or_pad_volume_to_size_along_z(image_rescaled, depth)
+        label_rescaled = utils.crop_or_pad_slice_to_size(label_rescaled, size[0], size[1])
+        label_rescaled = utils.crop_or_pad_volume_to_size_along_z(label_rescaled, depth)
+
+        # ============   
+        # append to list
+        # ============   
+        image_list += [np.squeeze(img) for img in np.split(image_rescaled, image_rescaled.shape[2], axis=2)]
+        label_list += [np.squeeze(lab) for lab in np.split(label_rescaled, label_rescaled.shape[2], axis=2)]
+
+        write_buffer += label_rescaled.shape[2]
+
+        # ============   
+        # Writing needs to happen inside the loop over the slices
+        # ============   
+        if write_buffer >= MAX_WRITE_BUFFER:
+
+            counter_to = counter_from + write_buffer
+
+            _write_range_to_hdf5(data,
+                                    image_list,
+                                    label_list,
+                                    counter_from,
+                                    counter_to)
             
-            # ============            
-            # crop or pad to make of the same size
-            # ============            
-            image2d_rescaled_rotated_cropped = utils.crop_or_pad_slice_to_size(image2d_rescaled, size[0], size[1])
-            label2d_rescaled_rotated_cropped = utils.crop_or_pad_slice_to_size(label2d_rescaled, size[0], size[1])
+            _release_tmp_memory(image_list,
+                                label_list)
 
             # ============   
-            # append to list
+            # update counters 
             # ============   
-            image_list.append(image2d_rescaled_rotated_cropped)
-            label_list.append(label2d_rescaled_rotated_cropped)
-
-            write_buffer += 1
-
-            # ============   
-            # Writing needs to happen inside the loop over the slices
-            # ============   
-            if write_buffer >= MAX_WRITE_BUFFER:
-
-                counter_to = counter_from + write_buffer
-
-                _write_range_to_hdf5(data,
-                                     image_list,
-                                     label_list,
-                                     counter_from,
-                                     counter_to)
-                
-                _release_tmp_memory(image_list,
-                                    label_list)
-
-                # ============   
-                # update counters 
-                # ============   
-                counter_from = counter_to
-                write_buffer = 0
+            counter_from = counter_to
+            write_buffer = 0
         
     # ============   
     # write leftover data
@@ -386,11 +400,15 @@ def load_without_size_preprocessing(input_folder,
     # ==================
     # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
     # ==================
+    # if site_name == 'caltech':
+    #     image = image[:, 80:, :]
+    #     label = label[:, 80:, :]
+    # elif site_name == 'stanford':
+    image, label = center_image_and_label(image, label)
+
     if site_name == 'caltech':
-        image = image[:, 80:, :]
-        label = label[:, 80:, :]
-    elif site_name == 'stanford':
-        image, label = center_image_and_label(image, label)
+        image = shift(image, [-1, -16, 21], order=0)
+        label = shift(label, [-1, -16, 21], order=0)
     
     # ==================
     # crop volume along z axis (as there are several zeros towards the ends)

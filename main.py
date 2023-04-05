@@ -29,5 +29,6 @@ for dataset, anatomy in zip(DATASETS, ANATOMIES):
             anatomy=anatomy,
             dataset=dataset,
             train_test_validation=data_split,
-            save_original=True  # Whether original dataset should be saved as well
+            save_original=True,  # Whether original dataset should be saved as well
+            force_overwrite=False,
         )
