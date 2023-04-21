@@ -57,7 +57,7 @@ def get_image_and_label_paths(filename,
                               extraction_folder = ''):
         
     _patname = filename[filename[:-1].rfind('/') + 1 : -1]
-    _imgpath = filename + 'MPRAGE_n4.nii'
+    _imgpath = filename + 'MPRAGE.nii'
     _segpath = filename + 'orig_labels_aligned_with_true_image.nii.gz'
                             
     return _patname, _imgpath, _segpath
@@ -110,16 +110,20 @@ def center_image_and_label(image, label):
 # ===============================================================
 # This function carries out all the pre-processing steps
 # ===============================================================
-def prepare_data(input_folder,
-                 output_file,
-                 site_name,
-                 idx_start,
-                 idx_end,
-                 protocol,
-                 size,
-                 depth,
-                 target_resolution,
-                 preprocessing_folder):
+def prepare_data(
+    input_folder,
+    output_file,
+    site_name,
+    idx_start,
+    idx_end,
+    protocol,
+    size,
+    depth,
+    target_resolution,
+    preprocessing_folder,
+    atlas_path,
+    force_overwrite,
+    ):
 
     # ========================    
     # read the filenames
@@ -179,6 +183,29 @@ def prepare_data(input_folder,
         patient_name, image_path, label_path = get_image_and_label_paths(filenames[idx])
         
         # ============
+        # apply bias correction
+        # ============
+        image_path = utils.n4_bias_correction(
+            patient_name,
+            image_path,
+            preprocessing_folder,
+            force_overwrite,
+        )
+
+        # ============
+        # register images to atlas
+        # ============
+        image_path, label_path = utils.register_to_mni152(
+            patient_name,
+            image_path,
+            label_path,
+            preprocessing_folder,
+            atlas_path,
+            verbose=True,
+            force_overwrite=force_overwrite,
+        )
+            
+        # ============
         # read the image
         # ============
         image, _, image_hdr = utils.load_nii(image_path)
@@ -197,20 +224,6 @@ def prepare_data(input_folder,
         label_mask = np.copy(label)
         label_mask[label > 0] = 1
         image = image * label_mask
-
-        # ==================
-        # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
-        # ==================
-        # if site_name == 'caltech':
-        #     image = image[:, 80:, :]
-        #     label = label[:, 80:, :]
-        # elif site_name == 'stanford':
-        image, label = center_image_and_label(image, label)
-
-        if site_name == 'caltech':
-            image = shift(image, [-1, -16, 21], order=0)
-            label = shift(label, [-1, -16, 21], order=0)
-                
 
         # ==================
         # collect some header info.
@@ -252,7 +265,6 @@ def prepare_data(input_folder,
             scale_vector,
             order=1,
             preserve_range=True,
-            multichannel=False,
             mode = 'constant',
         )
 
@@ -261,7 +273,6 @@ def prepare_data(input_folder,
             scale_vector,
             order=0,
             preserve_range=True,
-            multichannel=False,
             mode='constant',
         )
         
@@ -365,7 +376,9 @@ def _release_tmp_memory(img_list,
 def load_without_size_preprocessing(input_folder,
                                     site_name,
                                     idx,
-                                    depth=-1):
+                                    preprocessing_folder,
+                                    depth=-1,
+    ):
     
     # ========================    
     # read the filenames
@@ -376,6 +389,11 @@ def load_without_size_preprocessing(input_folder,
     # get file paths
     # ==================
     patient_name, image_path, label_path = get_image_and_label_paths(filenames[idx])
+
+    # ============
+    # apply bias correction
+    # ============
+    image_path = utils.n4_bias_correction(patient_name, image_path, preprocessing_folder)
     
     # ============
     # read the image
@@ -397,19 +415,6 @@ def load_without_size_preprocessing(input_folder,
     label_mask[label > 0] = 1
     image = image * label_mask
 
-    # ==================
-    # crop out some portion of the image, which are all zeros (rough registration via visual inspection)
-    # ==================
-    # if site_name == 'caltech':
-    #     image = image[:, 80:, :]
-    #     label = label[:, 80:, :]
-    # elif site_name == 'stanford':
-    image, label = center_image_and_label(image, label)
-
-    if site_name == 'caltech':
-        image = shift(image, [-1, -16, 21], order=0)
-        label = shift(label, [-1, -16, 21], order=0)
-    
     # ==================
     # crop volume along z axis (as there are several zeros towards the ends)
     # ==================
@@ -454,6 +459,7 @@ def load_and_maybe_process_data(input_folder,
                                 size,
                                 depth,
                                 target_resolution,
+                                atlas_path,
                                 force_overwrite = False):
     
     # ==============================================
@@ -495,7 +501,9 @@ def load_and_maybe_process_data(input_folder,
                      size,
                      depth,
                      target_resolution,
-                     preprocessing_folder)
+                     preprocessing_folder,
+                     atlas_path,
+                     force_overwrite)
     
     else:
         logging.info('Already preprocessed this configuration. Loading now!')
@@ -530,12 +538,15 @@ def load_multiple_without_size_preprocessing(input_folder,
     ny = []
     nz = []
 
+    preprocessing_folder = os.path.join(preprocessing_folder, site_name)
+
     for i in range(idx_start, idx_end):
 
         img_orig, lab_orig = load_without_size_preprocessing(
             input_folder=input_folder,
             site_name=site_name,
             idx=i,
+            preprocessing_folder=preprocessing_folder,
             depth=depth,
         )
 
@@ -583,7 +594,7 @@ def load_multiple_without_size_preprocessing(input_folder,
 
     data_file_name = 'data_%s_original_depth_%d_from_%d_to_%d.hdf5' % (
         protocol, depth, idx_start, idx_end)
-    data_file_path = os.path.join(preprocessing_folder, site_name, data_file_name)
+    data_file_path = os.path.join(preprocessing_folder, data_file_name)
 
     with h5py.File(data_file_path, 'w') as f:
         f.create_dataset('images', data=images_original)

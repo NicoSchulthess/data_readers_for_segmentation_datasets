@@ -149,7 +149,8 @@ def load_dataset(anatomy,
                                                                       size = image_size,
                                                                       depth = image_depth,
                                                                       target_resolution = target_resolution,
-                                                                      force_overwrite=force_overwrite)
+                                                                      atlas_path = datapaths.atlas_path_mni_152,
+                                                                      force_overwrite = force_overwrite)
         
             if save_original:
 

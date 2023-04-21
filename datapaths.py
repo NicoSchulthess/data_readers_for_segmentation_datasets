@@ -27,3 +27,8 @@ preproc_dir_rvsc = os.path.join(preproc_dir_root, 'rvsc/')
 preproc_dir_nci = os.path.join(preproc_dir_root, 'nci/')
 preproc_dir_pirad_erc = os.path.join(preproc_dir_root, 'pirad_erc/')
 preproc_dir_wmh_miccai = os.path.join(preproc_dir_root, 'wmh_miccai/')
+
+# ==================================================================
+# PATHS to atlas for registration
+# ==================================================================
+atlas_path_mni_152 = '/home/scnico/datasets/mni_icbm152_lin_nifti/icbm_avg_152_t1_tal_lin.nii'

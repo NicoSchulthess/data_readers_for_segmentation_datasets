@@ -1,10 +1,13 @@
+import glob
+from matplotlib import pyplot as plt
 import nibabel as nib
 import numpy as np
 import os
-import glob
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import morphology
+import SimpleITK as sitk
+
 
 # ===================================================
 # ===================================================
@@ -291,3 +294,123 @@ def compute_surface_distance(y1,
         hausdorff_distance_list.append(hausdorff_distance)
         
     return np.array(hausdorff_distance_list)
+
+# ==================================================================   
+# ================================================================== 
+def n4_bias_correction(
+    patient_name,
+    image_path,
+    preprocessing_folder,
+    use_mask=True,
+    filename='MPRAGE_n4.nii',
+    force_overwrite=False
+):
+
+    output_folder = os.path.join(preprocessing_folder, patient_name)
+    os.makedirs(output_folder, exist_ok=True)
+
+    output_path = os.path.join(output_folder, filename)
+    if os.path.exists(output_path) and not force_overwrite:
+        return output_path
+
+    image = sitk.Cast(sitk.ReadImage(image_path), sitk.sitkFloat32)
+    if use_mask:
+        mask = sitk.OtsuThreshold(image, 0, 1)
+        corrected_image = sitk.N4BiasFieldCorrection(image, mask)
+    else:
+        corrected_image = sitk.N4BiasFieldCorrection(image)
+
+    sitk.WriteImage(corrected_image, output_path)
+
+    return output_path
+
+# ==================================================================   
+# ================================================================== 
+def register_to_mni152(
+    patient_name,
+    image_path,
+    label_path,
+    preprocessing_folder,
+    atlas_path,
+    image_filename='MPRAGE_n4_MNI152.nii',
+    label_filename='orig_labels_MNI152.nii',
+    verbose=False,
+    force_overwrite=False,
+):
+
+    # Defines output paths and continues if registered images already exist.
+    output_folder = os.path.join(preprocessing_folder, patient_name)
+    os.makedirs(output_folder, exist_ok=True)
+
+    image_output_path = os.path.join(output_folder, image_filename)
+    label_output_path = os.path.join(output_folder, label_filename)
+
+    if os.path.exists(image_output_path) and os.path.exists(label_output_path) and not force_overwrite:
+        return image_output_path, label_output_path
+
+    # Loading unregistered images, labels and atlas
+    moving_image = sitk.Cast(sitk.ReadImage(image_path), sitk.sitkFloat32)
+    moving_labels = sitk.ReadImage(label_path)
+    fixed_image = sitk.Cast(sitk.ReadImage(atlas_path), sitk.sitkFloat32)
+
+    # Estimates the transform from image to atlas coordinates.
+    R = sitk.ImageRegistrationMethod()
+    R.SetMetricAsCorrelation()
+    R.SetOptimizerAsRegularStepGradientDescent(
+        learningRate=1.0, minStep=1e-4, numberOfIterations=300)
+    tx = sitk.TranslationTransform(moving_image.GetDimension())
+    R.SetInitialTransform(tx)
+    R.SetInterpolator(sitk.sitkLinear)
+    R.SetMetricSamplingStrategy(R.NONE)
+
+    if verbose:
+        print(tx.GetParameters())
+
+    outTx = R.Execute(fixed_image, moving_image)
+
+    if verbose:
+        print(outTx.GetParameters())
+        print(R.GetOptimizerStopConditionDescription())
+
+    # Transforms images and labels to the atlas coordinates.
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(fixed_image)
+    resampler.SetInterpolator(sitk.sitkLinear)
+    resampler.SetDefaultPixelValue(0)
+    resampler.SetTransform(outTx)
+    moving_image = resampler.Execute(moving_image)
+
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(fixed_image)
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampler.SetDefaultPixelValue(0)
+    resampler.SetTransform(outTx)
+    moving_labels = resampler.Execute(moving_labels)
+
+    sitk.WriteImage(moving_image, image_output_path)
+    sitk.WriteImage(moving_labels, label_output_path)
+
+    plt.figure(figsize=(10, 8))
+    plt.subplot(2, 3, 1)
+    plt.imshow(sitk.GetArrayFromImage(fixed_image)[100, :, :], cmap='gray')
+    plt.title('Fixed Image')
+    plt.subplot(2, 3, 2)
+    plt.imshow(sitk.GetArrayFromImage(fixed_image)[:, 100, :], cmap='gray')
+    plt.title('Fixed Image')
+    plt.subplot(2, 3, 3)
+    plt.imshow(sitk.GetArrayFromImage(fixed_image)[:, :, 100], cmap='gray')
+    plt.title('Fixed Image')
+    plt.subplot(2, 3, 4)
+    plt.imshow(sitk.GetArrayFromImage(moving_image)[100, :, :], cmap='gray')
+    plt.title('Moving Image')
+    plt.subplot(2, 3, 5)
+    plt.imshow(sitk.GetArrayFromImage(moving_image)[:, 100, :], cmap='gray')
+    plt.title('Moving Image')
+    plt.subplot(2, 3, 6)
+    plt.imshow(sitk.GetArrayFromImage(moving_image)[:, :, 100], cmap='gray')
+    plt.title('Moving Image')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_folder, 'registration_result.png'))
+    plt.close()
+
+    return image_output_path, label_output_path
